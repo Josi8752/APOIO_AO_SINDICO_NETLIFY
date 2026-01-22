@@ -9,7 +9,7 @@ import { ReportsPanel } from "../components/ReportsPanel";
 import { TicketModal } from "../components/TicketModal";
 
 import { analyzeMessage } from "../utils/analyzeMessage";
-import type { ChatMessage, Ticket } from "../types/ticket";
+import type { ChatMessage } from "../types/ticket";
 import { useTickets } from "../hooks/useTickets";
 
 export default function SindicoOps() {
@@ -18,47 +18,61 @@ export default function SindicoOps() {
   const [activeTab, setActiveTab] = useState<"chat" | "tickets" | "reports">("chat");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  const { tickets, stats, selectedTicket, setSelectedTicket, addTicket, resolveTicket } =
-    useTickets();
+  const {
+    tickets,
+    stats,
+    selectedTicket,
+    setSelectedTicket,
+    addTicketFromUi,
+    resolveTicket,
+    loading,
+    error,
+  } = useTickets();
 
-  function handleSendMessage() {
+  async function handleSendMessage() {
     const text = newMessage.trim();
     if (!text) return;
 
     const analysis = analyzeMessage(text);
-    const nextId = tickets.length ? Math.max(...tickets.map((t) => t.id)) + 1 : 1;
-
-    const ticket: Ticket = {
-      id: nextId,
-      category: analysis.category,
-      sentiment: analysis.sentiment,
-      urgency: analysis.urgency,
-      message: text,
-      unit: "999",
-      score: analysis.score,
-      status: "pending",
-      created: new Date().toISOString(),
-      factors: [
-        `Categoria: ${analysis.category}`,
-        `Urgência: ${analysis.urgency}`,
-        `Sentimento: ${analysis.sentiment}`,
-      ],
-    };
-
-    addTicket(ticket);
-
     const now = new Date().toLocaleTimeString();
-    setMessages((prev) => [
-      ...prev,
-      { type: "user", text, time: now },
-      {
-        type: "system",
-        text: `✓ Solicitação registrada! Score de risco: ${analysis.score}/100. Categoria: ${analysis.category}. Você receberá retorno em até 24h.`,
-        time: now,
-      },
-    ]);
 
+    // UI instantânea
+    setMessages((prev) => [...prev, { type: "user", text, time: now }]);
     setNewMessage("");
+
+    try {
+      await addTicketFromUi({
+        unit: "999",
+        message: text,
+        category: analysis.category,
+        urgency: analysis.urgency,
+        sentiment: analysis.sentiment,
+        score: analysis.score,
+        factors: [
+          `Categoria: ${analysis.category}`,
+          `Urgência: ${analysis.urgency}`,
+          `Sentimento: ${analysis.sentiment}`,
+        ],
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "system",
+          text: `✓ Solicitação registrada! Score de risco: ${analysis.score}/100. Categoria: ${analysis.category}. Você receberá retorno em até 24h.`,
+          time: now,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "system",
+          text: `✕ Falha ao registrar o chamado. Tente novamente.`,
+          time: now,
+        },
+      ]);
+    }
   }
 
   return (
@@ -76,16 +90,35 @@ export default function SindicoOps() {
         />
 
         {activeTab === "chat" && (
-          <ChatPanel
-            messages={messages}
-            newMessage={newMessage}
-            setNewMessage={setNewMessage}
-            onSend={handleSendMessage}
-          />
+          <div className="space-y-3">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
+                {error}
+              </div>
+            )}
+            <ChatPanel
+              messages={messages}
+              newMessage={newMessage}
+              setNewMessage={setNewMessage}
+              onSend={handleSendMessage}
+            />
+          </div>
         )}
 
         {activeTab === "tickets" && (
-          <TicketsPanel tickets={tickets} onSelect={(t) => setSelectedTicket(t)} />
+          <div className="space-y-3">
+            {loading && (
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                Carregando tickets...
+              </div>
+            )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
+                {error}
+              </div>
+            )}
+            <TicketsPanel tickets={tickets} onSelect={(t) => setSelectedTicket(t)} />
+          </div>
         )}
 
         {activeTab === "reports" && <ReportsPanel stats={stats} />}
@@ -95,7 +128,7 @@ export default function SindicoOps() {
         <TicketModal
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
-          onResolve={(id) => resolveTicket(id)}
+          onResolve={(id: string) => resolveTicket(id)}
         />
       )}
     </div>

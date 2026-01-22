@@ -3,7 +3,7 @@ export type Urgency = 'baixa' | 'média' | 'alta';
 export type Sentiment = 'neutro' | 'negativo' | 'positivo';
 
 export interface Ticket {
-  id: number;
+  id: string;
   category: string;
   sentiment: Sentiment;
   urgency: Urgency;

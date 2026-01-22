@@ -109,3 +109,16 @@ Tudo isso sem depender de planilhas, WhatsApp ou memória humana.
 ```bash
 npm install
 Projeto React + Vite + Tailwind + TypeScript.
+
+---
+
+## Entregáveis
+- Arquivos gerados automaticamente na raiz do projeto.
+
+---
+
+## Validação
+**Onde executar:** `~/sindicoops-ia/sindicoops-ia`
+
+```bash
+ls -la .gitignore README.md
